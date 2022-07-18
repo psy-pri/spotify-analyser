@@ -116,6 +116,6 @@ except:
     print("Data is already present")
     
 conn.close()
-print("Database closed")
+print("Database closed")    
 
 # Schedule
