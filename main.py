@@ -3,7 +3,7 @@ Author: Priyanka Shukla
 This script extracts user songs played in the last 24 hours,
 loads the data into a database and scheduled by Apache Airflow
 """
-#pylint: disable=W0621,C0103,W0404,W0611,broad-except
+#pylint: disable=W0621,C0103,W0404,W0611,E0401,W0703
 
 from datetime import datetime
 import datetime
