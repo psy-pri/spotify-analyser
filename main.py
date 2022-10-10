@@ -11,6 +11,9 @@ import requests
 import psycopg2
 import sqlalchemy
 import pandas as pd
+import requests as re
+import base64
+import six
 from sqlalchemy.orm import sessionmaker
 
 DATABASE_ENGINE = "postgresql+psycopg2://postgres:pri123@localhost:5432/spotify_trends"
@@ -56,22 +59,60 @@ def check_if_valid_data(df: pd.DataFrame) -> bool:
     return True
 
 if __name__ == "__main__":
+    TOKEN_URL = 'https://accounts.spotify.com/api/token'
+    BASE_URL = 'https://api.spotify.com/v1/'
+
+    #get auth code
+    auth_code = re.get("https://accounts.spotify.com/authorize", 
+                    {   "client_id":"535fb26b536d4ed4900a146efb235dcd",
+                        'response_type': 'code',
+                        'redirect_uri':'http://localhost:8080',
+                        'scope':'user-read-recently-played',
+                    })
+    aa= auth_code.json()
+    print(aa)
+
+    #set header 
+    CLIENT_ID = "535fb26b536d4ed4900a146efb235dcd"
+    CLIENT_SECRET = "2ba8891fd59e41ccafe63f9ac65b4de7"
+    auth_header = base64.b64encode(
+                (CLIENT_ID + ":" + CLIENT_SECRET).encode("ascii")
+        )
+    auth_header = auth_header.decode("ascii")
+
     headers = {
-        "Accept" : "application/json",
-        "Content-Type" : "application.json",
-        "Authorization" : f"Bearer {TOKEN}"
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic %s' % auth_header
+    }
+
+    payload = {
+        'grant_type':"authorization_code",
+        'code': auth_code,
+        'redirect_uri':'http://localhost:8080'
+        }
+
+    # Make a request to the /token endpoint to get an access token
+    access_token_request = re.post(url=TOKEN_URL, data=payload, headers=headers)
+    print(access_token_request)
+    # convert the response to JSON
+    access_token_response_data = access_token_request.json()
+
+    access_token = (access_token_response_data["access_token"])
+
+    headers = {
+        "Authorization": "Bearer " + access_token
     }
     today = datetime.datetime.now()
     today_unix_ts = int(today.timestamp()) * 1000
     yesterday = today - datetime.timedelta(days = 1)
-    print("yesterday ts:" , yesterday)
+    #print("yesterday ts:" , yesterday)
     yesterday_unix_ts = int(yesterday.timestamp()) * 1000
-    print("yesterday ts unix ", yesterday_unix_ts)
+    #print("yesterday ts unix ", yesterday_unix_ts)
     r = requests.get(\
         f"https://api.spotify.com/v1/me/player/recently-played?after={yesterday_unix_ts}",\
              headers = headers)
     data = r.json()
-    #print('Spotify data JSON:', data)
+    print('Spotify data JSON:', data)
     song_names = []
     artist_names = []
     played_at_list = []
