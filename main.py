@@ -13,18 +13,11 @@ import sqlalchemy
 import pandas as pd
 import requests as re
 import base64
-import six
-from sqlalchemy.orm import sessionmaker
-import webbrowser
 import urllib
-
-DATABASE_ENGINE = "postgresql+psycopg2://postgres:pri123@localhost:5432/spotify_trends"
-SPOTIFY_USER_ID = "21fnzbpor6sxzaox2k7lysf7q"
-TOKEN_URL = 'https://accounts.spotify.com/api/token'
-BASE_URL = 'https://api.spotify.com/v1/'
-CLIENT_ID = "535fb26b536d4ed4900a146efb235dcd"
-CLIENT_SECRET = "2ba8891fd59e41ccafe63f9ac65b4de7"
-
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from constants import *
 
 def check_if_valid_data(df: pd.DataFrame) -> bool:
     """
@@ -73,11 +66,22 @@ def access_token():
         'redirect_uri': 'http://localhost:8080',
     }
 
-    webbrowser.open("https://accounts.spotify.com/authorize?" + urllib.parse.urlencode(auth_code))
+
+    driver = webdriver.Chrome(CHROME_DRIVER_PATH)
+    driver.get("https://accounts.spotify.com/authorize?" + urllib.parse.urlencode(auth_code))
+   
+    wait = WebDriverWait(driver, 60)
+    wait.until(EC.url_contains('http://localhost:8080'))
+    get_url = driver.current_url
+    print("The current url is:"+str(get_url))
+    url_code = str(get_url)
+    driver.quit()
+    idx = (url_code.find('='))+1
+    code = ((url_code[idx:-4].lstrip()).rstrip())
+
+    print("code:",code)
 
     #set header 
-    
-    code = input("Enter code: ")
     
     encode_id_secret = f"{CLIENT_ID}:{CLIENT_SECRET}".encode("ascii")
     auth_header = base64.b64encode(encode_id_secret)
@@ -183,4 +187,5 @@ except Exception as e:
     print("Data is already present")
 conn.close()
 print("Database closed")
+
 # Schedule
