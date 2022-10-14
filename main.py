@@ -1,41 +1,45 @@
 """
 Author: Priyanka Shukla
 This script extracts user songs played in the last 24 hours,
-loads the data into a database and scheduled by Apache Airflow
+loads the data into a database
 """
-#pylint: disable=W0621,C0103,W0404,W0611,E0401,W0703
 
 from datetime import datetime
 import datetime
-import requests
+import base64
+import urllib
 import psycopg2
 import sqlalchemy
 import pandas as pd
 import requests as re
-import base64
-import urllib
 from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from constants import *
+from selenium.webdriver.support.ui import WebDriverWait
+from constants import DATABASE_ENGINE
+from constants import TOKEN_URL
+from constants import CLIENT_ID
+from constants import CLIENT_SECRET
+from constants import CHROME_DRIVER_PATH
 
-def check_if_valid_data(df: pd.DataFrame) -> bool:
+#pylint: disable=W0621,W0703
+
+def check_if_valid_data(data_frame: pd.DataFrame) -> bool:
     """
     Function to check if data is valid
     param: DataFrame
     returns: Boolean
     """
     # Check if dataframe is empty
-    if df.empty:
+    if data_frame.empty:
         print("No songs downloaded. Finishing execution")
         return False
     # Primary key check
-    if pd.Series(df["played_at"]).is_unique:
+    if pd.Series(data_frame["played_at"]).is_unique:
         pass
     else:
         raise Exception("Primary key check failed. Terminating program")
     # Check if null values exist
-    if df.isnull().values.any():
+    if data_frame.isnull().values.any():
         raise Exception("Null values found. Terminating program")
 
     # Check that all timestamps are of yesterday's date
@@ -44,7 +48,7 @@ def check_if_valid_data(df: pd.DataFrame) -> bool:
     # today = datetime.datetime.now()
     # yesterday = today - datetime.timedelta(days = 1)
     # print("yesterday:", yesterday)
-    # timestamps = df["ts"].tolist()
+    # timestamps = data_frame["ts"].tolist()
     # print("timestamps", timestamps)
     # for timestamp in timestamps:
     #     # trim_ts = datetime.datetime.strptime(str(timestamp), '%Y-%m-%d')
@@ -58,7 +62,10 @@ def check_if_valid_data(df: pd.DataFrame) -> bool:
     return True
 
 def access_token():
-    
+    """
+    This method is to generate access token
+    returns: access token
+    """
     auth_code = {
         'response_type': 'code',
         'client_id': CLIENT_ID,
@@ -69,7 +76,6 @@ def access_token():
 
     driver = webdriver.Chrome(CHROME_DRIVER_PATH)
     driver.get("https://accounts.spotify.com/authorize?" + urllib.parse.urlencode(auth_code))
-   
     wait = WebDriverWait(driver, 60)
     wait.until(EC.url_contains('http://localhost:8080'))
     get_url = driver.current_url
@@ -81,8 +87,7 @@ def access_token():
 
     print("code:",code)
 
-    #set header 
-    
+    #set header
     encode_id_secret = f"{CLIENT_ID}:{CLIENT_SECRET}".encode("ascii")
     auth_header = base64.b64encode(encode_id_secret)
     auth_header = auth_header.decode("ascii")
@@ -99,7 +104,7 @@ def access_token():
         }
 
     # Make a request to the /token endpoint to get an access token
-    access_token_request = re.post(TOKEN_URL, headers=headers, data=payload)
+    access_token_request = re.post(TOKEN_URL, headers=headers, data=payload, timeout=180)
     # convert the response to JSON
     access_token_response_data = access_token_request.json()
 
@@ -108,16 +113,17 @@ def access_token():
     except KeyError:
         err = '\x1b[0;30;41m' + 'Error ocured' + '\x1b[0m'
         print(err,'(Make sure you enter right code)')
+    return None
 
 
 
 if __name__ == "__main__":
-    
+
     access_token = access_token()
 
     print(f"access_token: {access_token}")
 
-    headers = { 
+    headers = {
         "Authorization": f"Bearer {access_token}"
     }
 
@@ -127,12 +133,11 @@ if __name__ == "__main__":
     #print("yesterday ts:" , yesterday)
     yesterday_unix_ts = int(yesterday.timestamp()) * 1000
     #print("yesterday ts unix ", yesterday_unix_ts)
-    
+
 
     headers = {'Authorization': f'Bearer {access_token}','Content-Type': 'application/json'}
-
-    
-    recently_played = re.get(f"https://api.spotify.com/v1/me/player/recently-played",headers=headers)
+    RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recently-played"
+    recently_played = re.get(f"{RECENTLY_PLAYED_URL}",headers=headers, timeout=180)
 
     print(recently_played)
     data = recently_played.json()
@@ -154,11 +159,11 @@ if __name__ == "__main__":
         "played_at" : played_at_list,
         "ts" : timestamps
     }
-    song_df = pd.DataFrame(data = song_dict)
-    print('Spotify data df format:', song_df)
+    song_data_frame = pd.DataFrame(data = song_dict)
+    print('Spotify data data_frame format:', song_data_frame)
 
 # Validate
-if check_if_valid_data(song_df):
+if check_if_valid_data(song_data_frame):
     print("Data valid, proceed to load stage.")
 
 # Load
@@ -181,7 +186,7 @@ if conn:
 else:
     print("Database connection failed")
 try:
-    song_df.to_sql("my_played_tracks", con=db_engine, index=False,
+    song_data_frame.to_sql("my_played_tracks", con=db_engine, index=False,
     schema="tracks", if_exists='append')
 except Exception as e:
     print("Data is already present")
