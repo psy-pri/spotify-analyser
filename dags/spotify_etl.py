@@ -15,11 +15,13 @@ import requests as re
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from constant import DATABASE_ENGINE
-from constant import TOKEN_URL
-from constant import CLIENT_ID
-from constant import CLIENT_SECRET
-from constant import CHROME_DRIVER_PATH
+from os import environ as env
+
+DATABASE_ENGINE = env.get("DATABASE_ENGINE")
+TOKEN_URL = env.get("TOKEN_URL")
+CLIENT_ID = env.get("CLIENT_ID")
+CLIENT_SECRET = env.get("CLIENT_SECRET")
+CHROME_DRIVER_PATH = env.get("CHROME_DRIVER_PATH")
 
 # pylint: disable=W0621,W0703
 
