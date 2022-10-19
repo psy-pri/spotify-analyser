@@ -15,11 +15,11 @@ import requests as re
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from constants import DATABASE_ENGINE
-from constants import TOKEN_URL
-from constants import CLIENT_ID
-from constants import CLIENT_SECRET
-from constants import CHROME_DRIVER_PATH
+from constant import DATABASE_ENGINE
+from constant import TOKEN_URL
+from constant import CLIENT_ID
+from constant import CLIENT_SECRET
+from constant import CHROME_DRIVER_PATH
 
 #pylint: disable=W0621,W0703
 
