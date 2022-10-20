@@ -15,13 +15,16 @@ import requests as re
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from constants import DATABASE_ENGINE
-from constants import TOKEN_URL
-from constants import CLIENT_ID
-from constants import CLIENT_SECRET
-from constants import CHROME_DRIVER_PATH
+from os import environ as env
 
-#pylint: disable=W0621,W0703
+DATABASE_ENGINE = env.get("DATABASE_ENGINE")
+TOKEN_URL = env.get("TOKEN_URL")
+CLIENT_ID = env.get("CLIENT_ID")
+CLIENT_SECRET = env.get("CLIENT_SECRET")
+CHROME_DRIVER_PATH = env.get("CHROME_DRIVER_PATH")
+
+# pylint: disable=W0621,W0703
+
 
 def check_if_valid_data(data_frame: pd.DataFrame) -> bool:
     """
@@ -61,60 +64,63 @@ def check_if_valid_data(data_frame: pd.DataFrame) -> bool:
 
     return True
 
+
 def access_token():
     """
     This method is to generate access token
     returns: access token
     """
     auth_code = {
-        'response_type': 'code',
-        'client_id': CLIENT_ID,
-        'scope': 'user-read-recently-played',
-        'redirect_uri': 'http://localhost:8080',
+        "response_type": "code",
+        "client_id": CLIENT_ID,
+        "scope": "user-read-recently-played",
+        "redirect_uri": "http://localhost:8080",
     }
 
-
     driver = webdriver.Chrome(CHROME_DRIVER_PATH)
-    driver.get("https://accounts.spotify.com/authorize?" + urllib.parse.urlencode(auth_code))
+    driver.get(
+        "https://accounts.spotify.com/authorize?" + urllib.parse.urlencode(auth_code)
+    )
     wait = WebDriverWait(driver, 60)
-    wait.until(EC.url_contains('http://localhost:8080'))
+    wait.until(EC.url_contains("http://localhost:8080"))
     get_url = driver.current_url
-    print("The current url is:"+str(get_url))
+    print("The current url is:" + str(get_url))
     url_code = str(get_url)
     driver.quit()
-    idx = (url_code.find('='))+1
-    code = ((url_code[idx:-4].lstrip()).rstrip())
+    idx = (url_code.find("=")) + 1
+    code = (url_code[idx:-4].lstrip()).rstrip()
 
-    print("code:",code)
+    print("code:", code)
 
-    #set header
+    # set header
     encode_id_secret = f"{CLIENT_ID}:{CLIENT_SECRET}".encode("ascii")
     auth_header = base64.b64encode(encode_id_secret)
     auth_header = auth_header.decode("ascii")
     headers = {
-            "Authorization": f"Basic  {auth_header}",
-            "Content-Type": "application/x-www-form-urlencoded"
+        "Authorization": f"Basic  {auth_header}",
+        "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    #data
+    # data
     payload = {
         "code": code,
-        "redirect_uri": 'http://localhost:8080',
-        "grant_type": "authorization_code"
-        }
+        "redirect_uri": "http://localhost:8080",
+        "grant_type": "authorization_code",
+    }
 
     # Make a request to the /token endpoint to get an access token
-    access_token_request = re.post(TOKEN_URL, headers=headers, data=payload, timeout=180)
+    access_token_request = re.post(
+        TOKEN_URL, headers=headers, data=payload, timeout=180
+    )
     # convert the response to JSON
     access_token_response_data = access_token_request.json()
 
     try:
-        return access_token_response_data['access_token']
+        return access_token_response_data["access_token"]
     except KeyError:
-        err = '\x1b[0;30;41m' + 'Error ocured' + '\x1b[0m'
-        print(err,'(Make sure you enter right code)')
+        err = "\x1b[0;30;41m" + "Error ocured" + "\x1b[0m"
+        print(err, "(Make sure you enter right code)")
     return None
-
 
 
 if __name__ == "__main__":
@@ -123,26 +129,24 @@ if __name__ == "__main__":
 
     print(f"access_token: {access_token}")
 
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
+    headers = {"Authorization": f"Bearer {access_token}"}
 
     today = datetime.datetime.now()
     today_unix_ts = int(today.timestamp()) * 1000
-    yesterday = today - datetime.timedelta(days = 1)
-    #print("yesterday ts:" , yesterday)
+    yesterday = today - datetime.timedelta(days=1)
+    # print("yesterday ts:" , yesterday)
     yesterday_unix_ts = int(yesterday.timestamp()) * 1000
-    #print("yesterday ts unix ", yesterday_unix_ts)
+    # print("yesterday ts unix ", yesterday_unix_ts)
 
-
-    headers = {'Authorization': f'Bearer {access_token}','Content-Type': 'application/json'}
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
     RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recently-played"
-    recently_played = re.get(f"{RECENTLY_PLAYED_URL}",headers=headers, timeout=180)
+    recently_played = re.get(f"{RECENTLY_PLAYED_URL}", headers=headers, timeout=180)
 
     print(recently_played)
     data = recently_played.json()
-
-
 
     song_names = []
     artist_names = []
@@ -154,22 +158,22 @@ if __name__ == "__main__":
         played_at_list.append(song["played_at"])
         timestamps.append(song["played_at"][0:10])
         song_dict = {
-        "song_name" : song_names,
-        "artist_name" : artist_names,
-        "played_at" : played_at_list,
-        "ts" : timestamps
-    }
-    song_data_frame = pd.DataFrame(data = song_dict)
-    print('Spotify data data_frame format:', song_data_frame)
+            "song_name": song_names,
+            "artist_name": artist_names,
+            "played_at": played_at_list,
+            "ts": timestamps,
+        }
+    song_data_frame = pd.DataFrame(data=song_dict)
+    print("Spotify data data_frame format:", song_data_frame)
 
 # Validate
 if check_if_valid_data(song_data_frame):
     print("Data valid, proceed to load stage.")
 
 # Load
-conn= psycopg2.connect("dbname=spotify_trends user=postgres password=pri123")
-db_engine= sqlalchemy.create_engine(DATABASE_ENGINE)
-#print("db-eng ",db_engine)
+conn = psycopg2.connect("dbname=spotify_trends user=postgres password=pri123")
+db_engine = sqlalchemy.create_engine(DATABASE_ENGINE)
+# print("db-eng ",db_engine)
 
 if conn:
     cursor = conn.cursor()
@@ -186,8 +190,13 @@ if conn:
 else:
     print("Database connection failed")
 try:
-    song_data_frame.to_sql("my_played_tracks", con=db_engine, index=False,
-    schema="tracks", if_exists='append')
+    song_data_frame.to_sql(
+        "my_played_tracks",
+        con=db_engine,
+        index=False,
+        schema="tracks",
+        if_exists="append",
+    )
 except Exception as e:
     print("Data is already present")
 conn.close()
