@@ -4,6 +4,8 @@ constants.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
+*.pyc
+
 # Distribution / packaging
 Lib/
 Scripts/
